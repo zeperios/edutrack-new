@@ -19,8 +19,7 @@ export default function GroupDetails({group,user,isAdvisor,onBack}){
   const a=await supabase.from('attendance').select('beneficiary_id,status,reason,notes').eq('group_id',group.id).eq('attendance_date',date);
   if(a.error){setMsg(a.error.message);return}
   setAttendance(Object.fromEntries((a.data||[]).map(x=>[x.beneficiary_id,x])));
-  const ev=await supabase.from('evaluations').select('*').eq('group_id',group.id).order('evaluation_date',{ascending:false});
-  if(ev.error){setMsg(ev.error.message);return}
+const ev = await supabase.from('evaluations').select('*').eq('group_id', group.id).order('evaluation_date', { ascending: false });  if(ev.error){setMsg(ev.error.message);return}
   setEvaluations(ev.data||[]);
  }
  useEffect(()=>{load()},[group.id,date]);
@@ -35,8 +34,85 @@ export default function GroupDetails({group,user,isAdvisor,onBack}){
  async function mark(id,status){setBusy(true);const payload={beneficiary_id:id,group_id:group.id,attendance_date:date,status,recorded_by:user.id};const r=await supabase.from('attendance').upsert(payload,{onConflict:'beneficiary_id,attendance_date'}).select().single();setBusy(false);if(r.error){setMsg(r.error.message);return}setAttendance(x=>({...x,[id]:r.data}));}
  async function discontinue(id){const r=await supabase.from('beneficiaries').update({status:'discontinued',discontinuation_date:date}).eq('id',id).select().single();if(r.error){setMsg(r.error.message);return}setBeneficiaries(x=>x.map(b=>b.id===id?r.data:b));}
  async function saveNotes(){if(!selected)return;const r=await supabase.from('beneficiaries').update({instructor_notes:selected.instructor_notes,advisor_notes:selected.advisor_notes}).eq('id',selected.id).select().single();if(r.error){setMsg(r.error.message);return}setBeneficiaries(x=>x.map(b=>b.id===selected.id?r.data:b));setSelected(null);setMsg('تم حفظ الملاحظات.');}
- async function saveEvaluation(e){e.preventDefault();if(!evalBeneficiary)return;const payload={beneficiary_id:evalBeneficiary,group_id:group.id,evaluation_date:evalDate,recorded_by:user.id,...Object.fromEntries(scoreFields.map(([k])=>[k:Number(evalForm[k])])),progress_note:evalForm.progress_note.trim()||null};
-  if(Object.values(payload).some(v=>false)){}; setBusy(true);const r=await supabase.from('evaluations').insert(payload).select().single();setBusy(false);if(r.error){setMsg(r.error.message);return}setEvaluations(x=>[r.data,...x]);setEvalForm(emptyEval);setMsg('تم حفظ التقييم بنجاح.');
+async function saveEvaluation(e) {
+  e.preventDefault();
+
+  if (!evalBeneficiary) return;
+
+  const scores = Object.fromEntries(
+    scoreFields.map(([key]) => [
+      key,
+      Number(evalForm[key] || 0)
+    ])
+  );
+
+  const payload = {
+    beneficiary_id: evalBeneficiary,
+    group_id: group.id,
+    evaluation_date: evalDate,
+    recorded_by: user.id,
+    ...scores,
+    progress_note: evalForm.progress_note?.trim() || null
+  };
+
+  setBusy(true);
+
+  const r = await supabase
+    .from('evaluations')
+    .insert(payload)
+    .select()
+    .single();
+
+  setBusy(false);
+
+  if (r.error) {
+    setMsg(r.error.message);
+    return;
+  }
+
+  setEvaluations(x => [r.data, ...x]);
+  setEvalForm(emptyEval);
+  setMsg('?? ??? ??????? ?????.');
+} {
+  e.preventDefault();
+
+  if (!evalBeneficiary) return;
+
+  const scores = Object.fromEntries(
+    scoreFields.map(([key]) => [
+      key,
+      Number(evalForm[key] || 0)
+    ])
+  );
+
+  const payload = {
+    beneficiary_id: evalBeneficiary,
+    group_id: group.id,
+    evaluation_date: evalDate,
+    recorded_by: user.id,
+    ...scores,
+    progress_note: evalForm.progress_note?.trim() || null
+  };
+
+  setBusy(true);
+
+  const r = await supabase
+    .from('evaluations')
+    .insert(payload)
+    .select()
+    .single();
+
+  setBusy(false);
+
+  if (r.error) {
+    setMsg(r.error.message);
+    return;
+  }
+
+  setEvaluations(x => [r.data, ...x]);
+  setEvalForm(emptyEval);
+  setMsg('تم حفظ التقييم بنجاح.');
+}  {}; setBusy(true);const r=await supabase.from('evaluations').insert(payload).select().single();setBusy(false);if(r.error){setMsg(r.error.message);return}setEvaluations(x=>[r.data,...x]);setEvalForm(emptyEval);setMsg('تم حفظ التقييم بنجاح.');
  }
  function selectEval(id){setEvalBeneficiary(id);const latest=evaluations.find(x=>x.beneficiary_id===id);if(latest)setEvalForm({understanding:latest.understanding,reading:latest.reading,writing:latest.writing,participation:latest.participation,comprehension:latest.comprehension,progress_note:latest.progress_note||''});else setEvalForm(emptyEval);}
  return <div dir="rtl">
